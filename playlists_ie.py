@@ -15,12 +15,17 @@ import os
 import rb
 import logging
 import filecmp
+import sys
 
 from gi.repository import Gio, GObject, Peas, RB, Gtk
 
 from playlists_ie_prefs import PlaylistsIOConfigureDialog
 
-debug = 0
+
+log = logging.getLogger(__name__)
+
+logging.basicConfig(stream=sys.stderr, level=logging.DEBUG)
+
 
 class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
     __gtype_name__ = 'PlaylistLoadSavePlugin'
@@ -81,7 +86,7 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
 
         pl_name = playlist_name
         pl_uri = "file://" + os.path.join(ie_folder, "tmp") + ".m3u"
-        if debug: logging.error("Exporting to tmp: " + pl_name)
+        log.debug("Exporting to tmp: " + pl_name)
         pl_man.export_playlist(pl_name, pl_uri, 1)
 
 
@@ -123,6 +128,7 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
                 playlist.props
             # Handle only static playlists (skip auto pl)
             if not isinstance(playlist, RB.AutoPlaylistSource):
+                logging.debug("Found static playlist: %s", playlist.props.name)
                 internal_playlists.append(playlist.props.name)
 
         # Get the playlist count in order to display the progress bar properly
@@ -155,14 +161,14 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
 
                     # If there is a change in the playlist - reimport
                     if not filecmp.cmp(tmp_path, pl_path):
-                        if debug: logging.error("deleting " + pl_name)
+                        log.debug("deleting " + pl_name)
                         pl_man.delete_playlist(pl_name)
-                        if debug: logging.error("importing " + pl_uri)
+                        log.debug("importing " + pl_uri)
                         pl_man.parse_file(pl_uri)
                     os.remove(tmp_path) # Clear the tmp file
 
                 else: # Import a pl missing from the internal list
-                    if debug: logging.error("importing " + pl_uri)
+                    log.debug("importing " + pl_uri)
                     pl_man.parse_file(pl_uri)
 
                 # Correct the name of the imported playlist
@@ -176,7 +182,7 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
 
         # If anything is left in the internal pl list: it's been removed externally, so delete it
         for pl in internal_playlists:
-            if debug: logging.error("deleting " + pl)
+            log.debug("deleting " + pl)
             pl_man.delete_playlist(pl)
         self.progress_window.destroy()
 
@@ -193,7 +199,7 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
         #for playlist in pl_man.get_playlists():
         #    if playlist.props.name == "Unnamed playlist":  # that's the one we imported last , so set it's name
         #        playlist.props.name = "tmp_tmp_tmp_tmp"
-        #if debug: logging.error("deleting tmp")
+        #log.debug("deleting tmp")
         #pl_man.delete_playlist("tmp_tmp_tmp_tmp")
         #pl_man.delete_playlist("tmp_tmp_tmp_tmp2")
 
@@ -234,7 +240,7 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
 
                 self.export_to_tmp(pl_name, shell)
                 if os.path.isfile(tmp_path):
-                    if debug: logging.error("Parsing and renaming tmp "+ tmp_path + " to: " + playlist_path)
+                    log.debug("Parsing and renaming tmp "+ tmp_path + " to: " + playlist_path)
                     self.parse_m3u_to_relative(ie_folder, tmp_path)
                     if playlist_path in existing_m3us:
                         existing_m3us.remove(playlist_path)
@@ -252,7 +258,7 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
 
     def warn_for_no_present_dir(self):
 
-        if debug: logging.error("reached warning for dir")
+        log.debug("reached warning for dir")
         messagedialog = Gtk.MessageDialog(parent=self.window,
                                           flags=Gtk.DialogFlags.MODAL,
                                           type=Gtk.MessageType.WARNING,
