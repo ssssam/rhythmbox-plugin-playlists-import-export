@@ -12,14 +12,11 @@
 #   along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import os
-import rb
 import logging
 import filecmp
 import sys
 
 from gi.repository import Gio, GObject, Peas, RB, Gtk
-
-from playlists_ie_prefs import PlaylistsIOConfigureDialog
 
 
 log = logging.getLogger(__name__)
@@ -111,8 +108,6 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
         self.create_progress_bar_win()
         pl_man = shell.props.playlist_manager
         pl_list = pl_man.get_playlists()
-        pl_count = len(pl_list)
-        processed_pl_count = 0
         pl_file_count = 0
         processed_pl_files = 0
 
