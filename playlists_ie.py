@@ -38,8 +38,6 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
         self.window = None
         self.action1 = None
         self.action2 = None
-        self.progress_window = None
-        self.progress_bar = None
         self.messagedialog = None
         self.plugin_info = "playlists_ie"
 
@@ -105,7 +103,6 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
             self.warn_for_no_present_dir()
             return
 
-        self.create_progress_bar_win()
         pl_man = shell.props.playlist_manager
         pl_list = pl_man.get_playlists()
         pl_file_count = 0
@@ -126,17 +123,10 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
                 logging.debug("Found static playlist: %s", playlist.props.name)
                 internal_playlists.append(playlist.props.name)
 
-        # Get the playlist count in order to display the progress bar properly
-        for pl_file in os.listdir(ie_folder):
-            if pl_file.endswith(".m3u"):
-                pl_file_count = pl_file_count+1
+        playlist_files = list(sorted(os.listdir(ie_folder)))
 
         #Start parsing playlist files
-        for pl_file in os.listdir(ie_folder):
-
-            while Gtk.events_pending(): # Update the UI
-                Gtk.main_iteration()
-
+        for pl_file in playlist_files:
             if pl_file.endswith(".m3u"):
                 # Metadata
                 pl_name = pl_file[:-4]
@@ -171,15 +161,10 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
                     if playlist.props.name == "Unnamed playlist":
                         playlist.props.name = pl_name
 
-                # Update the progress bar
-                processed_pl_files = processed_pl_files + 1
-                self.update_fraction(processed_pl_files / pl_file_count)
-
         # If anything is left in the internal pl list: it's been removed externally, so delete it
         for pl in internal_playlists:
             log.debug("deleting " + pl)
             pl_man.delete_playlist(pl)
-        self.progress_window.destroy()
 
         # It's impossible to circumvent this sht
         # Add and remove a playlist in order to avoid a UI bug (the last imported playlist gets selected for renaming)
@@ -209,7 +194,6 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
             return
 
         pl_man = shell.props.playlist_manager
-        self.create_progress_bar_win()
 
         pl_list = pl_man.get_playlists()
         pl_count = len(pl_list)
@@ -222,11 +206,6 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
                 existing_m3us.append(os.path.join(ie_folder,file))
 
         for playlist in pl_list:
-
-            # Update the UI
-            while Gtk.events_pending():
-                Gtk.main_iteration()
-
             # Only for static playlists (omit automatic ones)
             if isinstance(playlist, RB.StaticPlaylistSource):
                 pl_name = playlist.props.name
@@ -241,15 +220,9 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
                         existing_m3us.remove(playlist_path)
                     os.rename(tmp_path, playlist_path)
 
-                # Update progress bar
-                processed_pl_count = processed_pl_count + 1
-                self.update_fraction(processed_pl_count / pl_count)
-
         # The m3us left in the list are for removal (they were probably deleted in RB)
         for m3u in existing_m3us:
             os.rename(m3u, m3u+".deleted")
-
-        self.progress_window.destroy()
 
     def warn_for_no_present_dir(self):
 
@@ -265,22 +238,3 @@ class PlaylistLoadSavePlugin(GObject.Object, Peas.Activatable):
 
     def destroy_warning(self, widget, arg1):
         widget.destroy()
-
-    def create_progress_bar_win(self):
-
-        self.progress_window = Gtk.Dialog(title="Import/export progress",
-                                          parent=self.window)
-
-        self.progress_bar = Gtk.ProgressBar()
-        self.progress_window.get_content_area().add(self.progress_bar)
-        self.progress_window.get_action_area().set_size_request(1, -1)
-
-        # self.progress_window.set_transient_for(self.window)
-        self.progress_window.set_modal(True)
-        self.progress_window.resize(500, 30)
-        self.progress_window.show_all()
-
-    def update_fraction(self, fraction):
-
-        self.progress_bar.pulse()
-        self.progress_bar.set_fraction(fraction)
